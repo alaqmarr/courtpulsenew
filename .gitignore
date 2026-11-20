@@ -1,0 +1,62 @@
+# Dependencies & build output
+node_modules/
+.next/
+out/
+build/
+.pnpm-store/
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment & credentials
+.env
+.env.*
+!.env.example
+*firebase-adminsdk*.json
+*.pem
+*.key
+
+# Database files, WAL journals, backups & dumps
+data/
+database/migrations/*.db
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite*
+*.sqlite3
+*.sqlite3-*
+*.bak
+*.sql
+*.dump
+dump.rdb
+
+# Logs & process manager runtime
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.pm2/
+
+# Test files, temporary scripts, coverage & scratch data
+test/
+tests/
+__tests__/
+*.test.*
+*.spec.*
+test-*
+scripts/test-*
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+*.tmp
+*.temp
+
+# OS & editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo

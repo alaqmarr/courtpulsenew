@@ -1,0 +1,50 @@
+{
+  "name": "courtpulse",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:import": "tsx scripts/import-postgres.script.ts",
+    "icons:generate": "powershell -ExecutionPolicy Bypass -File scripts/generate-brand-assets.ps1"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.108.0",
+    "@tanstack/react-table": "^8.21.3",
+    "better-sqlite3": "^11.8.1",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.41.0",
+    "ioredis": "^6.0.0",
+    "lucide-react": "^0.475.0",
+    "next": "^16.4.6",
+    "next-auth": "5.0.0-beta.32",
+    "nextjs-toploader": "^3.9.17",
+    "nodemailer": "^6.10.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-dropzone": "^20.2.0",
+    "recharts": "^2.15.1",
+    "sileo": "^0.1.6",
+    "slugify": "^1.6.6",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.13.0",
+    "@types/nodemailer": "^6.4.17",
+    "@types/pg": "^8.11.11",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "drizzle-kit": "^0.30.6",
+    "pg": "^8.14.1",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
