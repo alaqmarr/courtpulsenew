@@ -49,6 +49,9 @@ function addColumnIfMissing(
 }
 
 function ensureTournamentSchemaUpgrades(sqlite: Database.Database): void {
+  // Additive upgrades on team_members
+  addColumnIfMissing(sqlite, "team_members", "is_active", "integer NOT NULL DEFAULT 1");
+
   // Additive upgrades on tournaments
   addColumnIfMissing(sqlite, "tournaments", "admin_token", "text");
   addColumnIfMissing(sqlite, "tournaments", "win_points", "integer NOT NULL DEFAULT 2");

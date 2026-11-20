@@ -97,7 +97,11 @@ export async function createSessionAction(input: {
           id: crypto.randomUUID(),
           sessionId: sessionSlug,
           memberId: m.id,
-          isSelected: includedSet ? includedSet.has(m.id) : true,
+          isSelected: m.isActive
+            ? includedSet
+              ? includedSet.has(m.id)
+              : true
+            : false,
         })
         .onConflictDoNothing()
         .run();
@@ -196,9 +200,10 @@ export async function setSessionParticipantsBulkAction(input: {
         )
         .get();
 
+      const nextSelected = m.isActive ? input.isSelected : false;
       if (existing) {
         db.update(sessionParticipants)
-          .set({ isSelected: input.isSelected })
+          .set({ isSelected: nextSelected })
           .where(eq(sessionParticipants.id, existing.id))
           .run();
       } else {
@@ -207,7 +212,7 @@ export async function setSessionParticipantsBulkAction(input: {
             id: crypto.randomUUID(),
             sessionId: session.id,
             memberId: m.id,
-            isSelected: input.isSelected,
+            isSelected: nextSelected,
           })
           .run();
       }

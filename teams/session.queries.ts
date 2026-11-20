@@ -51,7 +51,7 @@ function computeSessionDetail(teamSlug: string, sessionSlug: string) {
     participantRows.map((p) => [p.memberId, p.isSelected])
   );
 
-  const members = memberRows.map(({ member, user }) => ({
+  const allMembers = memberRows.map(({ member, user }) => ({
     id: member.id,
     email: member.email,
     displayName: getMemberDisplayName({
@@ -59,6 +59,7 @@ function computeSessionDetail(teamSlug: string, sessionSlug: string) {
       displayName: member.displayName,
       user,
     }),
+    isActive: member.isActive !== false,
     isPresent:
       participantRows.length === 0
         ? true
@@ -66,7 +67,10 @@ function computeSessionDetail(teamSlug: string, sessionSlug: string) {
     user,
   }));
 
-  const labelMap = buildPlayerLabelMap(members);
+  // Inactive players stay in past stats/labels, but never appear in selection lists
+  const members = allMembers.filter((m) => m.isActive);
+
+  const labelMap = buildPlayerLabelMap(allMembers);
   const labelObject = Object.fromEntries(labelMap.entries());
 
   const sessionGames = db
@@ -88,7 +92,7 @@ function computeSessionDetail(teamSlug: string, sessionSlug: string) {
     .where(eq(sessionPairHistory.sessionId, session.id))
     .all();
 
-  const sessionStandings = calculateTeamPlayerStats(sessionGames, members);
+  const sessionStandings = calculateTeamPlayerStats(sessionGames, allMembers);
 
   return {
     team,

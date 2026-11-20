@@ -7,6 +7,7 @@ import { Check, Pencil, X } from "lucide-react";
 import { sileo } from "sileo";
 import {
   removeTeamMemberAction,
+  toggleTeamMemberActiveAction,
   updateTeamMemberDisplayNameAction,
 } from "@courtpulse/teams/member.action";
 import { getMemberDisplayName } from "@courtpulse/helpers/stats.helpers";
@@ -16,6 +17,7 @@ interface TeamMemberItem {
   email: string;
   displayName: string | null;
   role: string;
+  isActive?: boolean;
   user: {
     id: string;
     name: string | null;
@@ -71,6 +73,26 @@ export function MemberList({
     onError: () => sileo.error({ title: "Could not update display name." }),
   });
 
+  const activeMutation = useMutation({
+    mutationFn: (payload: { memberId: string; isActive: boolean }) =>
+      toggleTeamMemberActiveAction({
+        teamSlug,
+        memberId: payload.memberId,
+        isActive: payload.isActive,
+      }),
+    onSuccess: (res, vars) => {
+      if (!res.ok) {
+        sileo.error({ title: res.message || "Could not update player status." });
+        return;
+      }
+      sileo.success({
+        title: vars.isActive ? "Player marked active" : "Player marked inactive",
+      });
+      router.refresh();
+    },
+    onError: () => sileo.error({ title: "Could not update player status." }),
+  });
+
   const startEdit = (member: TeamMemberItem) => {
     setEditingId(member.id);
     setDraftName(getMemberDisplayName(member));
@@ -106,6 +128,7 @@ export function MemberList({
             <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider">Player</th>
             <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider">Email</th>
             <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider">Role</th>
+            <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider">Status</th>
             {isOwner && (
               <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-right">
                 Action
@@ -116,6 +139,7 @@ export function MemberList({
         <tbody className="divide-y divide-slate-100">
           {members.map((member) => {
             const label = getMemberDisplayName(member);
+            const isActive = member.isActive !== false;
             const isEditing = editingId === member.id;
             const initials = label
               .split(" ")
@@ -125,10 +149,23 @@ export function MemberList({
               .join("");
 
             return (
-              <tr key={member.id} className="hover:bg-emerald-50/35 transition-colors">
+              <tr
+                key={member.id}
+                className={`transition-colors ${
+                  isActive
+                    ? "hover:bg-emerald-50/35"
+                    : "bg-slate-50/70 opacity-75 hover:bg-slate-100/70"
+                }`}
+              >
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-3">
-                    <span className="h-7 w-7 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 border border-emerald-200 flex items-center justify-center text-xs font-semibold text-emerald-900 shrink-0">
+                    <span
+                      className={`h-7 w-7 rounded-full border flex items-center justify-center text-xs font-semibold shrink-0 ${
+                        isActive
+                          ? "bg-gradient-to-br from-emerald-100 to-teal-100 border-emerald-200 text-emerald-900"
+                          : "bg-slate-200 border-slate-300 text-slate-600"
+                      }`}
+                    >
                       {initials || "P"}
                     </span>
                     {isEditing ? (
@@ -178,18 +215,48 @@ export function MemberList({
                 <td className="py-3 px-4 text-slate-600 capitalize">
                   {member.role.toLowerCase()}
                 </td>
+                <td className="py-3 px-4">
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                      isActive
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    {isActive ? "Active" : "Inactive"}
+                  </span>
+                </td>
                 {isOwner && (
                   <td className="py-3 px-4 text-right">
                     <div className="inline-flex items-center justify-end gap-2">
                       {!isEditing && (
-                        <button
-                          type="button"
-                          onClick={() => startEdit(member)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 rounded-md cursor-pointer"
-                        >
-                          <Pencil className="w-3 h-3" />
-                          <span>Edit name</span>
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            disabled={activeMutation.isPending}
+                            onClick={() =>
+                              activeMutation.mutate({
+                                memberId: member.id,
+                                isActive: !isActive,
+                              })
+                            }
+                            className={`px-2.5 py-1 text-xs font-medium border rounded-md cursor-pointer disabled:opacity-50 ${
+                              isActive
+                                ? "text-slate-700 border-slate-200 bg-slate-50 hover:bg-slate-100"
+                                : "text-emerald-700 border-emerald-200 bg-emerald-50 hover:bg-emerald-100"
+                            }`}
+                          >
+                            {isActive ? "Mark inactive" : "Activate"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => startEdit(member)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 rounded-md cursor-pointer"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            <span>Edit name</span>
+                          </button>
+                        </>
                       )}
                       {member.role !== "OWNER" && (
                         <button

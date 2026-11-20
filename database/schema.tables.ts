@@ -114,6 +114,7 @@ export const teamMembers = sqliteTable(
     displayName: text("display_name"),
     email: text("email").notNull(),
     role: text("role", { enum: TEAM_ROLES }).notNull().default("MEMBER"),
+    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
     joinedAt: integer("joined_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(nowMs),

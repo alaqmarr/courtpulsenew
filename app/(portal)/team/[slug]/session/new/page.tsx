@@ -35,14 +35,16 @@ export default async function NewSessionPage({
 
   if (!isAdmin) redirect(`/team/${slug}`);
 
-  const members = memberRows.map(({ member, user: memberUser }) => ({
-    id: member.id,
-    displayName: getMemberDisplayName({
-      email: member.email,
-      displayName: member.displayName,
-      user: memberUser,
-    }),
-  }));
+  const members = memberRows
+    .filter(({ member }) => member.isActive !== false)
+    .map(({ member, user: memberUser }) => ({
+      id: member.id,
+      displayName: getMemberDisplayName({
+        email: member.email,
+        displayName: member.displayName,
+        user: memberUser,
+      }),
+    }));
 
   return (
     <CreateSessionForm

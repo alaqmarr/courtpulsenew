@@ -225,3 +225,48 @@ export async function updateTeamMemberDisplayNameAction(input: {
   revalidatePath("/");
   return { ok: true };
 }
+
+export async function toggleTeamMemberActiveAction(input: {
+  teamSlug: string;
+  memberId: string;
+  isActive: boolean;
+}): Promise<{ ok: boolean; message?: string }> {
+  const user = await requireUser();
+  const team = db.select().from(teams).where(eq(teams.slug, input.teamSlug)).get();
+  if (!team) return { ok: false, message: "Team not found." };
+
+  const callerMember = db
+    .select()
+    .from(teamMembers)
+    .where(and(eq(teamMembers.teamId, team.id), eq(teamMembers.userId, user.id)))
+    .get();
+  const isAdmin =
+    team.ownerId === user.id ||
+    callerMember?.role === "OWNER" ||
+    callerMember?.role === "MANAGER";
+
+  if (!isAdmin) {
+    return { ok: false, message: "Only a team admin can update player status." };
+  }
+
+  const target = db
+    .select()
+    .from(teamMembers)
+    .where(and(eq(teamMembers.id, input.memberId), eq(teamMembers.teamId, team.id)))
+    .get();
+  if (!target) {
+    return { ok: false, message: "Player not found in this team." };
+  }
+
+  db.update(teamMembers)
+    .set({ isActive: input.isActive })
+    .where(and(eq(teamMembers.id, input.memberId), eq(teamMembers.teamId, team.id)))
+    .run();
+
+  await invalidateAllAppCaches();
+  revalidatePath(`/team/${input.teamSlug}`, "layout");
+  revalidatePath(`/team/${input.teamSlug}/session/new`);
+  revalidatePath(`/team/${input.teamSlug}/stats`);
+  revalidatePath("/");
+  return { ok: true };
+}

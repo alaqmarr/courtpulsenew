@@ -6,5 +6,5 @@ export const dynamic = "force-dynamic";
 export default async function PackagesPage() {
   const user = await requireUser();
 
-  return <PackagesView currentPlan={user.packageType} />;
+  return <PackagesView currentPlan={user.packageType} userEmail={user.email} />;
 }
