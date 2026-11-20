@@ -1,4 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/bash
+if [ -z "${BASH_VERSION:-}" ]; then
+  exec /bin/bash "$0" "$@"
+fi
 set -euo pipefail
 
 # CourtPulse initial server setup script

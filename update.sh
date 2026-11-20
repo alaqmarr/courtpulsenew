@@ -1,7 +1,11 @@
-#!/usr/bin/env bash
+#!/bin/bash
+if [ -z "${BASH_VERSION:-}" ]; then
+  exec /bin/bash "$0" "$@"
+fi
 set -euo pipefail
 
-# CourtPulse zero-data-loss update script
+# CourtPulse zero-data-loss update script (Bash)
+# - Always pulls latest commits from Git remote (pass --no-pull to skip)
 # - NEVER rewrites or re-seeds SQLite data (data/courtpulse.db is untouched)
 # - Takes a safe hot backup copy into data/backups/ before upgrading
 # - Enforces Redis 100 MB limit and clears stale CourtPulse cache entries
@@ -52,12 +56,16 @@ else
   echo "Warning: $DB_FILE does not exist yet. Run ./setup.sh for initial Neon seeding." >&2
 fi
 
-if [ "${1:-}" = "--git" ] && [ -d ".git" ]; then
-  log "Pulling latest code updates..."
-  if [ -n "$(git status --porcelain)" ]; then
+if [ "${1:-}" != "--no-pull" ] && [ -d ".git" ]; then
+  require_cmd git
+  BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+  log "Pulling latest updates from origin/$BRANCH..."
+  if ! git diff-index --quiet HEAD --; then
     git stash push -m "courtpulse-auto-update-$(date +%Y%m%d-%H%M%S)" >/dev/null || true
   fi
-  git pull --ff-only
+  git fetch origin "$BRANCH"
+  git pull --ff-only origin "$BRANCH"
+  chmod +x "$SCRIPT_DIR/setup.sh" "$SCRIPT_DIR/update.sh" >/dev/null 2>&1 || true
 fi
 
 log "Installing dependencies without modifying database..."
