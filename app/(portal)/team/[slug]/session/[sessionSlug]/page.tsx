@@ -8,6 +8,7 @@ import {
   canonicalPairKey,
 } from "@courtpulse/helpers/pairing.helpers";
 import { getSessionDetail } from "@courtpulse/teams/session.queries";
+import { computeTeamPermissions } from "@courtpulse/teams/permissions.helpers";
 import { GameCreator } from "@courtpulse/ui/teams/game-creator.component";
 import { GamesList } from "@courtpulse/ui/teams/games-list.component";
 import { SessionAttendance } from "@courtpulse/ui/teams/session-attendance.component";
@@ -25,7 +26,12 @@ export default async function SessionPage({
   const data = await getSessionDetail(slug, sessionSlug);
   if (!data) notFound();
 
-  const isOwner = data.team.ownerId === user.id;
+  const perms = computeTeamPermissions(
+    data.team.ownerId,
+    data.allMembers,
+    user.id,
+    user.email
+  );
 
   const pairingSummary = buildSessionPairingSummary(data.members, data.games);
   for (const stat of data.storedPlayerStats) {
@@ -113,11 +119,11 @@ export default async function SessionPage({
         teamSlug={slug}
         sessionSlug={sessionSlug}
         members={data.members}
-        canManage={isOwner}
+        canManage={perms.canManageAttendance}
       />
 
       <div className="w-full grid grid-cols-1 xl:grid-cols-12 xl:grid-rows-[auto_1fr] gap-6 items-start">
-        {isOwner && (
+        {perms.canCreateGames && (
           <div className="order-1 xl:order-none xl:col-span-5 xl:col-start-1 xl:row-start-1">
             <GameCreator
               teamSlug={slug}
@@ -134,7 +140,7 @@ export default async function SessionPage({
 
         <div
           className={`order-3 xl:order-none xl:col-span-5 xl:col-start-1 ${
-            isOwner ? "xl:row-start-2" : "xl:row-start-1"
+            perms.canCreateGames ? "xl:row-start-2" : "xl:row-start-1"
           } bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.04)]`}
         >
             <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50/70 via-white to-teal-50/40 flex items-center justify-between">
@@ -226,7 +232,10 @@ export default async function SessionPage({
             games={data.games}
             teamSlug={slug}
             sessionSlug={sessionSlug}
-            canManage={isOwner}
+            canManage={perms.canScoreGames}
+            canScore={perms.canScoreGames}
+            canDeleteActive={perms.canDeleteMatches || perms.canCreateGames}
+            canDeleteCompleted={perms.canDeleteMatches}
             labelMap={data.labelMap}
           />
         </div>

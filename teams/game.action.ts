@@ -19,6 +19,7 @@ import {
   users,
 } from "@courtpulse/database";
 import { generateSlug } from "@courtpulse/helpers/slug.helpers";
+import { resolveTeamPermissionsById } from "./permissions.helpers";
 
 export async function createGameAction(input: {
   teamSlug: string;
@@ -37,12 +38,12 @@ export async function createGameAction(input: {
     .get();
   if (!session) return { ok: false, message: "Session not found." };
 
-  const team = db.select().from(teams).where(eq(teams.id, session.teamId)).get();
-  if (!team || team.slug !== input.teamSlug) {
+  const access = resolveTeamPermissionsById(session.teamId, user.id, user.email);
+  if (!access || access.team.slug !== input.teamSlug) {
     return { ok: false, message: "Team not found." };
   }
-  if (team.ownerId !== user.id) {
-    return { ok: false, message: "Only the team owner can add matches." };
+  if (!access.perms.canCreateGames) {
+    return { ok: false, message: "You do not have permission to create matches." };
   }
 
   const teamA = input.teamAPlayers.map((p) => p.trim().toLowerCase());
@@ -101,10 +102,12 @@ export async function setGameWinnerAction(input: {
   const session = db.select().from(sessions).where(eq(sessions.id, game.sessionId)).get();
   if (!session) return { ok: false, message: "Session not found." };
 
-  const team = db.select().from(teams).where(eq(teams.id, session.teamId)).get();
-  if (!team || team.ownerId !== user.id) {
-    return { ok: false, message: "Only the team owner can record winners." };
+  const access = resolveTeamPermissionsById(session.teamId, user.id, user.email);
+  if (!access) return { ok: false, message: "Team not found." };
+  if (!access.perms.canScoreGames) {
+    return { ok: false, message: "You do not have permission to finalize match scores." };
   }
+  const { team } = access;
 
   const scoreA = Math.max(0, Number(input.teamAScore ?? game.teamAScore ?? 0));
   const scoreB = Math.max(0, Number(input.teamBScore ?? game.teamBScore ?? 0));
@@ -314,9 +317,10 @@ export async function updateGameScoreAction(input: {
   const session = db.select().from(sessions).where(eq(sessions.id, game.sessionId)).get();
   if (!session) return { ok: false, message: "Session not found." };
 
-  const team = db.select().from(teams).where(eq(teams.id, session.teamId)).get();
-  if (!team || team.ownerId !== user.id) {
-    return { ok: false, message: "Only the team owner can edit scores." };
+  const access = resolveTeamPermissionsById(session.teamId, user.id, user.email);
+  if (!access) return { ok: false, message: "Team not found." };
+  if (!access.perms.canScoreGames) {
+    return { ok: false, message: "You do not have permission to update scores." };
   }
 
   const tx = sqlite.transaction(() => {
@@ -360,10 +364,14 @@ export async function deleteGameAction(input: {
   const session = db.select().from(sessions).where(eq(sessions.id, game.sessionId)).get();
   if (!session) return { ok: false, message: "Session not found." };
 
-  const team = db.select().from(teams).where(eq(teams.id, session.teamId)).get();
-  if (!team || team.ownerId !== user.id) {
-    return { ok: false, message: "Only the team owner can delete matches." };
+  const access = resolveTeamPermissionsById(session.teamId, user.id, user.email);
+  if (!access) return { ok: false, message: "Team not found." };
+  const canDeleteThisGame =
+    access.perms.canDeleteMatches || (!game.winner && access.perms.canCreateGames);
+  if (!canDeleteThisGame) {
+    return { ok: false, message: "You do not have permission to delete this match." };
   }
+  const { team } = access;
 
   const tx = sqlite.transaction(() => {
     if (game.winner) {

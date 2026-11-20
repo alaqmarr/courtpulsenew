@@ -27,14 +27,23 @@ export function GamesList({
   teamSlug,
   sessionSlug,
   canManage,
+  canScore,
+  canDeleteActive,
+  canDeleteCompleted,
   labelMap,
 }: {
   games: GameItem[];
   teamSlug: string;
   sessionSlug: string;
   canManage: boolean;
+  canScore?: boolean;
+  canDeleteActive?: boolean;
+  canDeleteCompleted?: boolean;
   labelMap: Record<string, string>;
 }) {
+  const allowScore = canScore ?? canManage;
+  const allowDeleteActive = canDeleteActive ?? canManage;
+  const allowDeleteCompleted = canDeleteCompleted ?? canManage;
   const router = useRouter();
   const [slideIndex, setSlideIndex] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -143,7 +152,8 @@ export function GamesList({
               sideBLabel={resolveNameList(game.teamBPlayers).join(" + ")}
               teamSlug={teamSlug}
               sessionSlug={sessionSlug}
-              canManage={canManage}
+              canManage={allowScore}
+              canDelete={allowDeleteActive}
             />
           ))}
         </div>
@@ -253,9 +263,9 @@ export function GamesList({
                     </span>
                   </div>
 
-                  {canManage && (
+                  {(allowScore || allowDeleteCompleted) && (
                     <div className="flex items-center gap-1.5">
-                      {isEditing && (
+                      {allowScore && isEditing && (
                         <div className="inline-flex items-center gap-1 mr-1">
                           <input
                             type="text"
@@ -303,32 +313,36 @@ export function GamesList({
                           </button>
                         </div>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingId(isEditing ? null : game.id);
-                          setScoreDrafts((prev) => ({
-                            ...prev,
-                            [game.id]: {
-                              a: String(game.teamAScore),
-                              b: String(game.teamBScore),
-                            },
-                          }));
-                        }}
-                        title="Edit score"
-                        className="p-1 text-slate-400 hover:text-slate-800 rounded cursor-pointer"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={deleteMutation.isPending}
-                        onClick={() => deleteMutation.mutate(game.slug)}
-                        title="Delete match"
-                        className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {allowScore && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingId(isEditing ? null : game.id);
+                            setScoreDrafts((prev) => ({
+                              ...prev,
+                              [game.id]: {
+                                a: String(game.teamAScore),
+                                b: String(game.teamBScore),
+                              },
+                            }));
+                          }}
+                          title="Edit score"
+                          className="p-1 text-slate-400 hover:text-slate-800 rounded cursor-pointer"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {allowDeleteCompleted && (
+                        <button
+                          type="button"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => deleteMutation.mutate(game.slug)}
+                          title="Delete match"
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

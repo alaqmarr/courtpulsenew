@@ -7,6 +7,7 @@ import { requireUser } from "@courtpulse/auth/auth.helpers";
 import { invalidateAllAppCaches } from "@courtpulse/connections/cache.connection";
 import { db, sqlite, teamMembers, teams, users } from "@courtpulse/database";
 import { addMemberSchema } from "@courtpulse/helpers/validation.helpers";
+import { resolveTeamPermissionsBySlug } from "./permissions.helpers";
 
 export async function addTeamMemberAction(input: {
   teamSlug: string;
@@ -26,11 +27,16 @@ export async function addTeamMemberAction(input: {
     };
   }
 
-  const team = db.select().from(teams).where(eq(teams.slug, input.teamSlug)).get();
-  if (!team) return { ok: false, message: "Team not found." };
-  if (team.ownerId !== current.id) {
-    return { ok: false, message: "Only the team owner can add players." };
+  const access = resolveTeamPermissionsBySlug(
+    input.teamSlug,
+    current.id,
+    current.email
+  );
+  if (!access) return { ok: false, message: "Team not found." };
+  if (!access.perms.canManagePlayers) {
+    return { ok: false, message: "You do not have permission to add players." };
   }
+  const { team } = access;
 
   const email = parsed.data.email;
   const duplicate = db
@@ -87,11 +93,21 @@ export async function bulkAddTeamMembersAction(input: {
   rows: { email: string; displayName?: string }[];
 }): Promise<{ ok: boolean; added: number; skipped: number; message?: string }> {
   const current = await requireUser();
-  const team = db.select().from(teams).where(eq(teams.slug, input.teamSlug)).get();
-  if (!team) return { ok: false, added: 0, skipped: 0, message: "Team not found." };
-  if (team.ownerId !== current.id) {
-    return { ok: false, added: 0, skipped: 0, message: "Only the team owner can add players." };
+  const access = resolveTeamPermissionsBySlug(
+    input.teamSlug,
+    current.id,
+    current.email
+  );
+  if (!access) return { ok: false, added: 0, skipped: 0, message: "Team not found." };
+  if (!access.perms.canManagePlayers) {
+    return {
+      ok: false,
+      added: 0,
+      skipped: 0,
+      message: "You do not have permission to add players.",
+    };
   }
+  const { team } = access;
 
   let added = 0;
   let skipped = 0;
@@ -188,22 +204,12 @@ export async function updateTeamMemberDisplayNameAction(input: {
     return { ok: false, message: "Display name must be 60 characters or fewer." };
   }
 
-  const team = db.select().from(teams).where(eq(teams.slug, input.teamSlug)).get();
-  if (!team) return { ok: false, message: "Team not found." };
-
-  const callerMember = db
-    .select()
-    .from(teamMembers)
-    .where(and(eq(teamMembers.teamId, team.id), eq(teamMembers.userId, user.id)))
-    .get();
-  const isAdmin =
-    team.ownerId === user.id ||
-    callerMember?.role === "OWNER" ||
-    callerMember?.role === "MANAGER";
-
-  if (!isAdmin) {
-    return { ok: false, message: "Only a team admin can edit display names." };
+  const access = resolveTeamPermissionsBySlug(input.teamSlug, user.id, user.email);
+  if (!access) return { ok: false, message: "Team not found." };
+  if (!access.perms.canManagePlayers) {
+    return { ok: false, message: "You do not have permission to edit display names." };
   }
+  const { team } = access;
 
   const target = db
     .select()
@@ -232,22 +238,12 @@ export async function toggleTeamMemberActiveAction(input: {
   isActive: boolean;
 }): Promise<{ ok: boolean; message?: string }> {
   const user = await requireUser();
-  const team = db.select().from(teams).where(eq(teams.slug, input.teamSlug)).get();
-  if (!team) return { ok: false, message: "Team not found." };
-
-  const callerMember = db
-    .select()
-    .from(teamMembers)
-    .where(and(eq(teamMembers.teamId, team.id), eq(teamMembers.userId, user.id)))
-    .get();
-  const isAdmin =
-    team.ownerId === user.id ||
-    callerMember?.role === "OWNER" ||
-    callerMember?.role === "MANAGER";
-
-  if (!isAdmin) {
-    return { ok: false, message: "Only a team admin can update player status." };
+  const access = resolveTeamPermissionsBySlug(input.teamSlug, user.id, user.email);
+  if (!access) return { ok: false, message: "Team not found." };
+  if (!access.perms.canManagePlayers) {
+    return { ok: false, message: "You do not have permission to update player status." };
   }
+  const { team } = access;
 
   const target = db
     .select()
@@ -267,6 +263,59 @@ export async function toggleTeamMemberActiveAction(input: {
   revalidatePath(`/team/${input.teamSlug}`, "layout");
   revalidatePath(`/team/${input.teamSlug}/session/new`);
   revalidatePath(`/team/${input.teamSlug}/stats`);
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function updateTeamMemberPermissionsAction(input: {
+  teamSlug: string;
+  memberId: string;
+  role?: "MANAGER" | "MEMBER";
+  canCreateSessions: boolean;
+  canCreateGames: boolean;
+  canScoreGames: boolean;
+  canManagePlayers: boolean;
+}): Promise<{ ok: boolean; message?: string }> {
+  const user = await requireUser();
+  const access = resolveTeamPermissionsBySlug(input.teamSlug, user.id, user.email);
+  if (!access) return { ok: false, message: "Team not found." };
+  if (!access.perms.canManagePermissions) {
+    return {
+      ok: false,
+      message: "Only the team owner can assign member permissions.",
+    };
+  }
+  const { team } = access;
+
+  const target = db
+    .select()
+    .from(teamMembers)
+    .where(and(eq(teamMembers.id, input.memberId), eq(teamMembers.teamId, team.id)))
+    .get();
+  if (!target) {
+    return { ok: false, message: "Player not found in this team." };
+  }
+  if (target.role === "OWNER" || target.userId === team.ownerId) {
+    return { ok: false, message: "Team owner already holds full permissions." };
+  }
+
+  const nextRole = input.role === "MANAGER" ? "MANAGER" : "MEMBER";
+  const isManager = nextRole === "MANAGER";
+
+  db.update(teamMembers)
+    .set({
+      role: nextRole,
+      canCreateSessions: isManager ? true : Boolean(input.canCreateSessions),
+      canCreateGames: isManager ? true : Boolean(input.canCreateGames),
+      canScoreGames: isManager ? true : Boolean(input.canScoreGames),
+      canManagePlayers: isManager ? true : Boolean(input.canManagePlayers),
+    })
+    .where(and(eq(teamMembers.id, input.memberId), eq(teamMembers.teamId, team.id)))
+    .run();
+
+  await invalidateAllAppCaches();
+  revalidatePath(`/team/${input.teamSlug}`, "layout");
+  revalidatePath(`/team/${input.teamSlug}/session/new`);
   revalidatePath("/");
   return { ok: true };
 }

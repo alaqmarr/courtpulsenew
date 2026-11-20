@@ -26,6 +26,7 @@ interface LiveScoreboardCardProps {
   teamSlug: string;
   sessionSlug: string;
   canManage: boolean;
+  canDelete?: boolean;
 }
 
 export function LiveScoreboardCard({
@@ -36,7 +37,9 @@ export function LiveScoreboardCard({
   teamSlug,
   sessionSlug,
   canManage,
+  canDelete,
 }: LiveScoreboardCardProps) {
+  const allowDelete = canDelete ?? canManage;
   const router = useRouter();
   const [scoreA, setScoreA] = useState(game.teamAScore);
   const [scoreB, setScoreB] = useState(game.teamBScore);
@@ -123,7 +126,7 @@ export function LiveScoreboardCard({
             In progress · Match #{matchNumber}
           </span>
         </div>
-        {canManage && (
+        {allowDelete && (
           <button
             type="button"
             disabled={deleteMutation.isPending}

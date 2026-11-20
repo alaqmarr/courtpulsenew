@@ -115,6 +115,18 @@ export const teamMembers = sqliteTable(
     email: text("email").notNull(),
     role: text("role", { enum: TEAM_ROLES }).notNull().default("MEMBER"),
     isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    canCreateSessions: integer("can_create_sessions", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    canCreateGames: integer("can_create_games", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    canScoreGames: integer("can_score_games", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    canManagePlayers: integer("can_manage_players", { mode: "boolean" })
+      .notNull()
+      .default(false),
     joinedAt: integer("joined_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(nowMs),

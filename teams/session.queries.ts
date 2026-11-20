@@ -53,7 +53,13 @@ function computeSessionDetail(teamSlug: string, sessionSlug: string) {
 
   const allMembers = memberRows.map(({ member, user }) => ({
     id: member.id,
+    userId: member.userId,
     email: member.email,
+    role: member.role,
+    canCreateSessions: member.canCreateSessions,
+    canCreateGames: member.canCreateGames,
+    canScoreGames: member.canScoreGames,
+    canManagePlayers: member.canManagePlayers,
     displayName: getMemberDisplayName({
       email: member.email,
       displayName: member.displayName,
@@ -97,6 +103,7 @@ function computeSessionDetail(teamSlug: string, sessionSlug: string) {
   return {
     team,
     session,
+    allMembers,
     members,
     labelMap: labelObject,
     games: sessionGames,

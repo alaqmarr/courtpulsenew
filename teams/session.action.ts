@@ -15,28 +15,7 @@ import {
 } from "@courtpulse/database";
 import { generateSlug } from "@courtpulse/helpers/slug.helpers";
 import { createSessionSchema } from "@courtpulse/helpers/validation.helpers";
-
-function verifyTeamAdmin(teamSlug: string, userId: string) {
-  const team = db.select().from(teams).where(eq(teams.slug, teamSlug)).get();
-  if (!team) return { error: "Team not found." as const };
-
-  const callerMember = db
-    .select()
-    .from(teamMembers)
-    .where(and(eq(teamMembers.teamId, team.id), eq(teamMembers.userId, userId)))
-    .get();
-
-  const isAdmin =
-    team.ownerId === userId ||
-    callerMember?.role === "OWNER" ||
-    callerMember?.role === "MANAGER";
-
-  if (!isAdmin) {
-    return { error: "Only a team admin can manage sessions." as const };
-  }
-
-  return { team };
-}
+import { resolveTeamPermissionsBySlug } from "./permissions.helpers";
 
 export async function createSessionAction(input: {
   teamSlug: string;
@@ -57,9 +36,12 @@ export async function createSessionAction(input: {
     };
   }
 
-  const check = verifyTeamAdmin(input.teamSlug, user.id);
-  if ("error" in check) return { ok: false, message: check.error };
-  const { team } = check;
+  const access = resolveTeamPermissionsBySlug(input.teamSlug, user.id, user.email);
+  if (!access) return { ok: false, message: "Team not found." };
+  if (!access.perms.canCreateSessions) {
+    return { ok: false, message: "You do not have permission to create sessions." };
+  }
+  const { team } = access;
 
   const parsedDate = new Date(parsed.data.date);
   if (Number.isNaN(parsedDate.getTime())) {
@@ -121,9 +103,15 @@ export async function toggleSessionParticipantAction(input: {
   isSelected: boolean;
 }): Promise<{ ok: boolean; message?: string }> {
   const user = await requireUser();
-  const check = verifyTeamAdmin(input.teamSlug, user.id);
-  if ("error" in check) return { ok: false, message: check.error };
-  const { team } = check;
+  const access = resolveTeamPermissionsBySlug(input.teamSlug, user.id, user.email);
+  if (!access) return { ok: false, message: "Team not found." };
+  if (!access.perms.canManageAttendance) {
+    return {
+      ok: false,
+      message: "You do not have permission to manage session players.",
+    };
+  }
+  const { team } = access;
 
   const session = db
     .select()
@@ -170,9 +158,15 @@ export async function setSessionParticipantsBulkAction(input: {
   isSelected: boolean;
 }): Promise<{ ok: boolean; message?: string }> {
   const user = await requireUser();
-  const check = verifyTeamAdmin(input.teamSlug, user.id);
-  if ("error" in check) return { ok: false, message: check.error };
-  const { team } = check;
+  const access = resolveTeamPermissionsBySlug(input.teamSlug, user.id, user.email);
+  if (!access) return { ok: false, message: "Team not found." };
+  if (!access.perms.canManageAttendance) {
+    return {
+      ok: false,
+      message: "You do not have permission to manage session players.",
+    };
+  }
+  const { team } = access;
 
   const session = db
     .select()
@@ -230,11 +224,12 @@ export async function deleteSessionAction(input: {
   sessionSlug: string;
 }): Promise<{ ok: boolean; message?: string }> {
   const user = await requireUser();
-  const team = db.select().from(teams).where(eq(teams.slug, input.teamSlug)).get();
-  if (!team) return { ok: false, message: "Team not found." };
-  if (team.ownerId !== user.id) {
-    return { ok: false, message: "Only the team owner can delete sessions." };
+  const access = resolveTeamPermissionsBySlug(input.teamSlug, user.id, user.email);
+  if (!access) return { ok: false, message: "Team not found." };
+  if (!access.perms.isManager) {
+    return { ok: false, message: "Only team owners or managers can delete sessions." };
   }
+  const { team } = access;
 
   db.delete(sessions)
     .where(and(eq(sessions.slug, input.sessionSlug), eq(sessions.teamId, team.id)))

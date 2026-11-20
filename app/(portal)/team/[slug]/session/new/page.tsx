@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@courtpulse/auth/auth.helpers";
 import { db, teamMembers, teams, users } from "@courtpulse/database";
 import { getMemberDisplayName } from "@courtpulse/helpers/stats.helpers";
+import { computeTeamPermissions } from "@courtpulse/teams/permissions.helpers";
 import { CreateSessionForm } from "@courtpulse/ui/teams/create-session-form.component";
 
 export const dynamic = "force-dynamic";
@@ -25,15 +26,14 @@ export default async function NewSessionPage({
     .where(eq(teamMembers.teamId, team.id))
     .all();
 
-  const isAdmin =
-    team.ownerId === user.id ||
-    memberRows.some(
-      ({ member }) =>
-        member.userId === user.id &&
-        (member.role === "OWNER" || member.role === "MANAGER")
-    );
+  const permissions = computeTeamPermissions(
+    team.ownerId,
+    memberRows.map(({ member }) => member),
+    user.id,
+    user.email
+  );
 
-  if (!isAdmin) redirect(`/team/${slug}`);
+  if (!permissions.canCreateSessions) redirect(`/team/${slug}`);
 
   const members = memberRows
     .filter(({ member }) => member.isActive !== false)

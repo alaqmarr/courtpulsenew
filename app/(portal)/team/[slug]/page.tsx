@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@courtpulse/auth/auth.helpers";
+import { computeTeamPermissions } from "@courtpulse/teams/permissions.helpers";
 import { getTeamDetailBySlug } from "@courtpulse/teams/team.queries";
 import { TeamDetail } from "@courtpulse/ui/teams/team-detail.component";
 
@@ -22,18 +23,19 @@ export default async function TeamPage({
     data.owner?.email.split("@")[0] ||
     "Owner";
 
-  const isTeamAdmin =
-    data.team.ownerId === user.id ||
-    data.members.some(
-      (m) =>
-        m.userId === user.id && (m.role === "OWNER" || m.role === "MANAGER")
-    );
+  const permissions = computeTeamPermissions(
+    data.team.ownerId,
+    data.members,
+    user.id,
+    user.email
+  );
 
   return (
     <TeamDetail
       team={data.team}
       ownerName={ownerName}
-      isOwner={isTeamAdmin}
+      isOwner={permissions.isManager}
+      permissions={permissions}
       members={data.members}
       sessions={data.sessions}
       games={data.games}

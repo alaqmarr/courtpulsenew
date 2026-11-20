@@ -6,6 +6,7 @@ import { BarChart3, Calendar, Users } from "lucide-react";
 import { calculateSessionTrend } from "@courtpulse/helpers/analytics.helpers";
 import { formatDateIST } from "@courtpulse/helpers/date.helpers";
 import type { PairStatRow, PlayerStatRow } from "@courtpulse/helpers/stats.helpers";
+import type { TeamPermissions } from "@courtpulse/teams/permissions.helpers";
 import { AddMemberPanel } from "./add-member-panel.component";
 import { MemberList } from "./member-list.component";
 import { SessionsList } from "./sessions-list.component";
@@ -22,6 +23,7 @@ interface TeamDetailProps {
   };
   ownerName: string;
   isOwner: boolean;
+  permissions?: TeamPermissions;
   members: any[];
   sessions: any[];
   games: any[];
@@ -34,6 +36,7 @@ export function TeamDetail({
   team,
   ownerName,
   isOwner,
+  permissions,
   members,
   sessions,
   games,
@@ -42,6 +45,17 @@ export function TeamDetail({
   totalGames,
 }: TeamDetailProps) {
   const [tab, setTab] = useState<TabKey>("sessions");
+  const resolvedPerms = permissions ?? {
+    isOwner,
+    isManager: isOwner,
+    canCreateSessions: isOwner,
+    canCreateGames: isOwner,
+    canScoreGames: isOwner,
+    canManagePlayers: isOwner,
+    canManageAttendance: isOwner,
+    canDeleteMatches: isOwner,
+    canManagePermissions: isOwner,
+  };
   const topPlayer = playerStats.find((p) => p.games > 0) || null;
   const bestPair = winningPairs[0] || null;
   const sessionTrend = calculateSessionTrend(sessions);
@@ -66,7 +80,7 @@ export function TeamDetail({
             <BarChart3 className="w-4 h-4 text-emerald-600" />
             <span>Public link</span>
           </Link>
-          {isOwner && <AddMemberPanel teamSlug={team.slug} />}
+          {resolvedPerms.canManagePlayers && <AddMemberPanel teamSlug={team.slug} />}
         </div>
       </div>
 
@@ -150,7 +164,7 @@ export function TeamDetail({
         <SessionsList
           sessions={sessions}
           teamSlug={team.slug}
-          isOwner={isOwner}
+          isOwner={resolvedPerms.canCreateSessions}
         />
       )}
 
@@ -168,7 +182,9 @@ export function TeamDetail({
         <MemberList
           members={members}
           teamSlug={team.slug}
-          isOwner={isOwner}
+          isOwner={resolvedPerms.isOwner}
+          canManagePlayers={resolvedPerms.canManagePlayers}
+          canManagePermissions={resolvedPerms.canManagePermissions}
         />
       )}
     </div>
