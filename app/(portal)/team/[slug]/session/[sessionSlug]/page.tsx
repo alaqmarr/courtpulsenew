@@ -116,9 +116,9 @@ export default async function SessionPage({
         canManage={isOwner}
       />
 
-      <div className="w-full grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        <div className="xl:col-span-5 space-y-6 xl:sticky xl:top-6">
-          {isOwner && (
+      <div className="w-full grid grid-cols-1 xl:grid-cols-12 xl:grid-rows-[auto_1fr] gap-6 items-start">
+        {isOwner && (
+          <div className="order-1 xl:order-none xl:col-span-5 xl:col-start-1 xl:row-start-1">
             <GameCreator
               teamSlug={slug}
               sessionSlug={sessionSlug}
@@ -129,9 +129,14 @@ export default async function SessionPage({
               matchupPlayCounts={pairingSummary.matchupPlayCounts}
               lastGamePlayerEmails={pairingSummary.lastGamePlayerEmails}
             />
-          )}
+          </div>
+        )}
 
-          <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+        <div
+          className={`order-3 xl:order-none xl:col-span-5 xl:col-start-1 ${
+            isOwner ? "xl:row-start-2" : "xl:row-start-1"
+          } bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.04)]`}
+        >
             <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50/70 via-white to-teal-50/40 flex items-center justify-between">
               <h2 className="text-sm font-bold text-slate-900">
                 Session leaderboard
@@ -215,9 +220,8 @@ export default async function SessionPage({
               </table>
             </div>
           </div>
-        </div>
 
-        <div className="xl:col-span-7">
+        <div className="order-2 xl:order-none xl:col-span-7 xl:col-start-6 xl:row-start-1 xl:row-span-2">
           <GamesList
             games={data.games}
             teamSlug={slug}
